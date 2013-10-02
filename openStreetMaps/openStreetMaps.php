@@ -88,22 +88,22 @@ class openStreetMaps extends plxPlugin {
 
 		$string = "
 		if(\$this->get && preg_match('/^localisation\/?/',\$this->get)) {
-			// if (isset(\$this->plxPlugins->aPlugins['adhesion'])){
-			// 	if (isset(\$_SESSION['account'])) {
-			// 		\$this->mode = 'openStreetMaps';
-			// 		\$this->cible = '../../plugins/openStreetMaps/static';
-			// 		\$this->template = '".$template."';
-			// 		return true;
-			// 	} else {
-			// 		header('location:'.\$this->racine);
-			// 		return true;
-			// 	}
-			// } else {
+			if (isset(\$this->plxPlugins->aPlugins['adhesion'])){
+				if (isset(\$_SESSION['account'])) {
+					\$this->mode = 'openStreetMaps';
+					\$this->cible = '../../plugins/openStreetMaps/static';
+					\$this->template = '".$template."';
+					return true;
+				} else {
+					header('location:'.\$this->racine);
+					return true;
+				}
+			} else {
 				\$this->mode = 'openStreetMaps';
 				\$this->cible = '../../plugins/openStreetMaps/static';
 				\$this->template = '".$template."';
 				return true;
-			// }
+			}
 		}
 		";
 
@@ -122,7 +122,7 @@ class openStreetMaps extends plxPlugin {
 		if($this->getParam('mnuDisplay')) {
 			echo "<?php \$class = \$this->plxMotor->mode=='openStreetMaps'?'active':'noactive'; ?>";
 			# Si le plugin adhesion est présent et activé
-			echo '<?php if (isset($this->plxMotor->plxPlugins->aPlugins["adhesion"]) && $this->plxMotor->plxPlugins->aPlugins["adhesion"]->activate == 1){
+			echo '<?php if (isset($this->plxMotor->plxPlugins->aPlugins["adhesion"])){
 				# Utilisateur connecté
 				if (isset($_SESSION["account"])) {
 					foreach ($menus as $key => $value) {

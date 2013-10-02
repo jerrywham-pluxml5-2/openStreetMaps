@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+	<title><![CDATA[openStreetMaps]]></title>
+	<author><![CDATA[Cyril MAGUIRE]]></author>
+	<version>1.0</version>
+	<date>12/03/2013</date>
+	<site>http://www.ecyseo.net</site>
+	<description><![CDATA[Affiche la localisation de villes de France]]></description>
+	<requirements></requirements>
+</document>

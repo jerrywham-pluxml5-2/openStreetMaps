@@ -4,11 +4,10 @@
  *
  * @author	Cyril MAGUIRE
  **/
+require_once PLX_PLUGINS.'openStreetMaps/lib/medoo.php';
 class openStreetMaps extends plxPlugin {
 
-	public $list = array(); # Tableau des codes postaux sources
-	public $gps = array(); # Tableau des coordonnées GPS
-
+	public $list = array('valides' => ''); # Tableau des codes postaux sources
 	public $plxGlob_sources; # Objet listant les fichiers sources
 
 	/**
@@ -38,18 +37,6 @@ class openStreetMaps extends plxPlugin {
 		$this->addHook('plxShowPageTitle', 'plxShowPageTitle');
 		$this->addHook('SitemapStatics', 'SitemapStatics');
 
-    }
-
-    public function onActivate() {
-    	# Si le dossier des coordonnées gps n'existe pas, on le crée
-    	if (!is_dir(PLX_ROOT.'plugins/openStreetMaps/gps')) {
-    		mkdir(PLX_ROOT.'plugins/openStreetMaps/gps');
-    		chmod(PLX_ROOT.'plugins/openStreetMaps/gps', 0777);
-    		# On crée les fichiers de coordonnées par code postal
-    		$this->recGPS();
-    		# On remet les bons droits d'accès
-    		chmod(PLX_ROOT.'plugins/openStreetMaps/gps', 0644);
-    	}
     }
 
 	/**
@@ -126,7 +113,7 @@ class openStreetMaps extends plxPlugin {
 				# Utilisateur connecté
 				if (isset($_SESSION["account"])) {
 					foreach ($menus as $key => $value) {
-						if (strpos($value, "annuaire.html") !== false) {
+						if (strpos($value, "annuaire") !== false) {
 							$tmp = preg_replace(\'/<li class="([a-z]+)">(.+)(<\/li>)/i\', \'<li class="$1">$2
 								<ul>
 									\', $value);
@@ -170,14 +157,34 @@ class openStreetMaps extends plxPlugin {
 	}
 
 	/**
-	 * Méthode qui récupère les codes postaux enregistrés dans le fichier xml source
+	 * Méthode qui retourne les informations $output en analysant
+	 * le nom du fichier de l'adhérent $filename
+	 *
+	 * @param	filename	fichier de l'adhérent à traiter
+	 * @return	array		information à récupérer
+	 * @author	Stephane F
+	 **/
+	public function recInfoFromFilename($filename) {
+
+		# On effectue notre capture d'informations
+		if(preg_match('/(_?[0-9]{5}).([a-z0-9-]*).([a-z0-9-]*).([0-9]{10}).xml$/',$filename,$capture)) {
+			return array(
+				'Id'		=> $capture[1],
+				'Nom'		=> $capture[2],
+				'Prenom'	=> $capture[3],
+				'Date'		=> $capture[4],
+			);
+		}
+	}
+	/**
+	 * Méthode qui récupère les informations enregistrées dans le fichier xml source
 	 * 
 	 * @param $filename ressource le chemin vers le fichier source indiqué dans la configuration
 	 * @return array
 	 * 
 	 * @author Cyril MAGUIRE
 	 */
-	public function getCp($filename) {
+	public function getRecords($filename) {
 		
 		if(!is_file($filename)) return;
 		
@@ -195,9 +202,10 @@ class openStreetMaps extends plxPlugin {
 				$val = '';
 				$coord = '';
 				$nom = '';
-
+				$tmp = $this->recInfoFromFilename($filename);
 				# Récupération de la ville
-				$ville = str_replace(array(' ','-','_','Cedex','CEDEX','cedex','0','1','2','3','4','5','6','7','8','9'),'',trim(strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemville')][$i]]['value'])))));
+				$fullname = trim(strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemville')][$i]]['value']))));
+				$ville = str_replace(array(' ','-','_','Cedex','CEDEX','cedex','0','1','2','3','4','5','6','7','8','9'),'',$fullname);
 				
 				if  ($this->getParam('itemval') != '') {
 					# Récupération de la validité de l'inscription
@@ -209,182 +217,71 @@ class openStreetMaps extends plxPlugin {
 				}
 				if  ($this->getParam('itemnom') != '') {
 					# Récupération du nom à afficher dans la pop-up
-					$nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
+					//$nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
+					$nom = strtoupper($tmp['Nom']);
 				}
 				$this->list[$ville][] = array(
+					'NUM' => $tmp['Id'],
 					'VAL' => $val,
 					'COORD'=> $coord,
 					'NOM'	=> $nom,
-					# Récupération du cp
-					'CP'	=> $this->arrondir(plxUtils::getValue($values[$iTags[$this->getParam('itemcp')][$i]]['value']),1)
+					'CP' => plxUtils::getValue($values[$iTags[$this->getParam('itemcp')][$i]]['value']),
+					'VILLE' => $fullname,
 				);
+				if ($val == 1) {
+					$this->list['valides'] .= $nom;
+				}
 			}
 		}
 		return $this->list;
 	}
 
-
 	/**
-	 * Méthode qui récupère les coordonnées enregistrées dans le fichier xml source
-	 * 
-	 * @param $filename ressource le chemin vers le fichier source indiqué dans la configuration
-	 * @return array
-	 * 
-	 * @author Cyril MAGUIRE
-	 */
-	public function getCoordonnees($filename) {
-
-		if(!is_file($filename)) return;
-		
-		# Mise en place du parseur XML
-		$data = implode('',file($filename));
-		$parser = xml_parser_create(PLX_CHARSET);
-		xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0);
-		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,0);
-		xml_parse_into_struct($parser,$data,$values,$iTags);
-		xml_parser_free($parser);
-		if(isset($iTags[$this->getParam('item_principal_coord')]) AND isset($iTags[$this->getParam('itemlat')])) {
-			$nb = sizeof($iTags[$this->getParam('itemlat')]);
-			$size=ceil(sizeof($iTags[$this->getParam('item_principal_coord')])/$nb);
-			for($i=0;$i<$nb;$i++) {
-				$nom = '';
-				if  ($this->getParam('itemnom') != '') {
-					# Récupération du nom de la localisation
-					$nom = plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value']);
-				}
-				$this->list[] = array(
-					'NOM'	=> $nom,
-					# Récupération de la latitude
-					'LAT'	=> plxUtils::getValue($values[$iTags[$this->getParam('itemlat')][$i]]['value']),
-					# Récupération de la longitude
-					'LONG'  => plxUtils::getValue($values[$iTags[$this->getParam('itemlong')][$i]]['value'])
-				);
-			}
-		}
-		return $this->list;
-	}
-
-
-	/**
-	 * Méthode qui dispatche les coordonnées gps des villes dans plusieurs fichiers selon leur code postal
-	 * 
-	 * @return array
-	 * 
-	 * @author Cyril MAGUIRE
-	 */
-	public function recGPS() {
-		$villes = PLX_ROOT.'plugins/openStreetMaps/villes.csv';
-		if(!is_file($villes)) return 'Aucun fichier';
-		# Récupération des données
-		$data = file($villes);
-
-		for ($i=0;$i<36000;$i++) {
-			if (isset($data[$i])) {
-				$v = explode(';', $data[$i]);
-				file_put_contents(PLX_ROOT.'plugins/openStreetMaps/gps/'.$v[0], $v[2],FILE_APPEND);
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Méthode permettant de faire un arrondi supérieur ou inférieur en fonction de la précision choisie
-	 * 
-	 * @param $value integer       le nombre à arrondir
-	 * @param $precision integer   1 la précision sera sur les dizaines
-	 * 							   2 la précision sera sur les centaines, etc.
-	 * @param $arrondiSup bool 	   arrondi supérieur par défaut
-	 * @return integer
-	 * 
-	 * @author Cyril MAGUIRE
-	 */
-	public function arrondir($value,$precision=1,$arrondiSup=true) {
-			$p = pow(10,$precision);
-			if ($arrondiSup) return ceil($value/$p)*$p;
-			else return $value-($value%$p);
-	}
-
-	/**
-	 * Méthode qui récupère les coordonnées gps d'une ville selon son code postal
-	 * 
-	 * @param $cp integer le code postal de la ville à chercher
-	 * @param $ville string le nom de la ville à chercher
-	 * @param $decalage integer le décalage à appliquer s'il y a plusieurs markers avec les mêmes coordonnées
-	 * @return array
-	 * 
-	 * @author Cyril MAGUIRE
-	 */
-	public function getGPS($cp,$ville,$decalage = 0) {
-		(int) $cp;
-		$gps = PLX_ROOT.'plugins/openStreetMaps/gps/';
-		$CP = $cp;
-		if (!is_file($gps.$cp)) {
-			//Tous les codes postaux n'étant pas disponibles
-			//On arrondi le code postal à la dizaine supérieure
-			$CP = $this->arrondir($cp,1);
-			//On vérifie à nouveau
-			if (!is_file($gps.$CP)) {
-				//Si toujours pas disponible
-				//On arrondi le code postal à la centaine supérieure
-				$CP = $this->arrondir($cp,2);
-				//On vérifie à nouveau
-				if (!is_file($gps.$CP)) {
-					//Si toujours pas disponible
-					//On arrondi le code postal à la centaine inférieure
-					$CP = $this->arrondir($cp,2,false);
-					//On vérifie à nouveau
-					if (!is_file($gps.$CP)) {
-						//Si toujours pas disponible
-						//On arrondi le code postal au millier supérieur
-						$CP = $this->arrondir($cp,3);
-						//On vérifie à nouveau
-						if (!is_file($gps.$CP)) {
-							//Si toujours pas disponible
-							//On arrondi le code postal au millier inférieur
-							$CP = $this->arrondir($cp,3,false);
-							//On vérifie à nouveau
-							if (!is_file($gps.$CP)) {
-								//Si toujours pas disponible
-								//On arrondi le code postal à la centaine de millier supérieure
-								$CP = $this->arrondir($cp,4);
-								//On vérifie à nouveau
-								if (!is_file($gps.$CP)) {
-									//Si toujours pas disponible
-									//On arrondi le code postal à la centaine de millier inférieure
-									$CP = $this->arrondir($cp,4,false);
-									//On vérifie à nouveau
-									if (!is_file($gps.$CP)) {
-										$CP = $cp;
-										return false;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		$cp = $CP;
-		# Récupération des données
-		$data = file($gps.$cp);
-		foreach ($data as $k => $json) {
-			if(strpos($json, $ville)) {
-				$json = trim($json);
-				# Lorsqu'il y a plusieurs enregistrements avec les mêmes coordonnées
-				# on les décale les uns par rapport aux autres pour afficher plusieurs markers
-				# On supprime l'accolade de fin
-				$tmp = substr($json, 0, strrpos($json, '.')+1);
-				# et on récupère la partie non entière de la longitude
-				$fin = '0.'.substr($json,strrpos($json, '.')+1,-1);
-				$fin = $fin+($decalage/100);
-				# On applique le décalage
-				$json = $tmp.substr($fin,2).'}';
-				return $json;
-			}
-		}
-	}
-
-
+	* Search a town by its name
+	*
+	* @param string $town Town name
+	* @return array
+	*
+	* @author Cyril MAGUIRE
+	*/
+    public function search($town,$cp) {
+		$dbTowns = new medoo(array(
+			'db' => 'gps',
+			'database_type' => 'sqlite',
+			'database_file' => PLX_PLUGINS.'openStreetMaps/gps/gps.sqlite'
+			)
+		);
+		$town = strtolower($town);
+        $result = $dbTowns->select('towns', array('lat', 'lon'), array(
+        	'AND'=> array(
+           		'cp' => $cp,
+           		'nom' => $town
+           		)
+            )
+        );
+        if (count($result) == 1) {
+        	$result = $result[0];
+        }
+        if (empty($result)) {
+        	$result = $this->Nominatim($town,$cp);
+        	$last_id = $dbTowns->insert('towns', array(
+        			'lat' => $result['lat'],
+        			'lon' => $result['lon'],
+        			'cp' => $cp,
+        			'nom' => $town
+        		)
+        	);
+        }
+        return $result;
+    }
+	
+    public function Nominatim($town,$cp) {
+    	$c = file_get_contents('http://nominatim.openstreetmap.org/search/?format=json&country=france&city='.urlencode($town).'&postcode='.$cp);
+		$c = json_decode($c);
+		$result['lat'] = $c[0]->lat;
+		$result['lon'] = $c[0]->lon;
+		return $result;
+    }
 	/**
 	 * Méthode qui ajoute les fichiers js dans le pied de page du thème
 	 *
@@ -395,45 +292,63 @@ class openStreetMaps extends plxPlugin {
 		if ($this->getParam('type') == 1) :
 		# Récupération des codes postaux à afficher sur la carte
 		if (is_file(PLX_ROOT.$this->getParam('source'))) {
-			$CP = $this->getCp(PLX_ROOT.$this->getParam('source'));
+			$infos = $this->getRecords(PLX_ROOT.$this->getParam('source'));
 		} else {
 			$dir = trim($this->getParam('source'),'/').'/';
 			if (is_dir(PLX_ROOT.$dir)) {
 				$this->plxGlob_sources = plxGlob::getInstance(PLX_ROOT.$dir,false,true,'arts');
 				foreach ($this->plxGlob_sources->aFiles as $key => $file) {
-					$CP = $this->getCp(PLX_ROOT.$dir.$file);
+					$infos = $this->getRecords(PLX_ROOT.$dir.$file);
 				}
 			}
 		}
-
+		$adherents = md5($infos['valides']);
+		unset($infos['valides']);
 		$map = '';
-		# Récupération des coordonnées
-		foreach ($CP as $ville => $marker) {
-			foreach ($marker as $k => $v) {
-				$dec = $k;
-				$GPS = trim($this->getGPS($v['CP'],$ville,$dec));
-				if (!empty($GPS)) {
-					if ($this->getParam('itemnom') != '') {
-						// Si l'affichage nécessite une autorisation, on vérifie que les paramètres ne sont pas vides
-						if ($v['VAL'] == $this->getParam('dataval') && $this->getParam('dataval') != '' && $v['COORD'] == $this->getParam('datacoord') && $this->getParam('datacoord') != '') {
-							$map .= str_replace('}',', click : \''.$v['NOM'].'\' }', $GPS).','."\n";
-							//S'il faut un affichage et qu'il ne nécessite pas d'autorisation
-						} elseif($this->getParam('dataval') == '' && $this->getParam('datacoord') == '') {
-							$map .= str_replace('}',', click : \''.$v['NOM'].'\' }', $GPS).','."\n";
-							//Sinon
-						} else {
-							$map .= str_replace('}',', click : \'Non renseigné\' }', $GPS).','."\n";
-						}
-					} else {
-						$map .= $GPS.','."\n";
-					}	
+		$GPS = array();
+		$coordonnees = scandir(PLX_PLUGINS.'openStreetMaps/listing');
+			if(!isset($coordonnees[2]) || $coordonnees[2] != $adherents.'.txt') {
+				if (isset($coordonnees[2]) ) {
+					unlink(PLX_PLUGINS.'openStreetMaps/listing/'.$coordonnees[2]);
 				}
+				# Récupération des coordonnées
+				foreach ($infos as $ville => $marker) {
+					if (!empty($ville)) {
+						if (!isset($GPS[$ville])) {
+							$GPS[$ville] = $this->search(trim(str_replace(array('CEDEX','0','1','2','3','4','5','6','7','8','9'),'',$marker[0]['VILLE'])),$marker[0]['CP']);
+						}
+						foreach ($marker as $k => $v) {
+							$GPS[$ville]['lon'] = $GPS[$ville]['lon']+($k*0.0001);
+							if (!empty($GPS[$ville]) && !empty($GPS[$ville]['lon']) && !empty($GPS[$ville]['lat']) ) {
+								if ($this->getParam('itemnom') != '') {
+									// Si l'affichage nécessite une autorisation, on vérifie que les paramètres ne sont pas vides
+									if ($v['VAL'] == $this->getParam('dataval') && $this->getParam('dataval') != '' && $v['COORD'] == $this->getParam('datacoord') && $this->getParam('datacoord') != '') {
+										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : '.$v['NOM'].'\' },'."\n";
+										//S'il faut un affichage et qu'il ne nécessite pas d'autorisation
+									} elseif($this->getParam('dataval') == '' && $this->getParam('datacoord') == '') {
+										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : '.$v['NOM'].'\'
+										},'."\n";
+										//Sinon
+									} else {
+										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : Non renseigné\' },'."\n";
+									}
+								} else {
+									$map .= '{/*'.$v['VILLE'].'*/ latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].'},'."\n";
+								}	
+							}  else {
+								$map .= '//'.$v['VILLE'].' '.$v['NUM']."\n";
+							}
+						}
+					}
+				}
+				$map = substr($map, 0,-2);
+				file_put_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$adherents.'.txt', $map);
+			} else {
+				$map = file_get_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$coordonnees[2]);
 			}
-		}
-		$map = substr($map, 0,-2);
 		else :
 		# Récupération des coordonnées à afficher sur la carte
-		$COORD = $this->getCoordonnees(PLX_ROOT.$this->getParam('source'));
+		$COORD = $this->getRecords(PLX_ROOT.$this->getParam('source'));
 
 		$map = '';
 		# Mise en forme des coordonnées

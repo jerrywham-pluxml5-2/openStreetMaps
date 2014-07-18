@@ -42,7 +42,8 @@
 
                     map = L.map(this.id).setView([settings.latitude, settings.longitude], settings.zoom);
 
-                    L.tileLayer('http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/{styleId}/256/{z}/{x}/{y}.png', {attribution: defaults.cloudmadeAttribution, styleId: 997}).addTo(map);
+                    //L.tileLayer('http://{s}.tile.cloudmade.com/BC9A493B41014CAABB98F0471D759707/{styleId}/256/{z}/{x}/{y}.png', {attribution: defaults.cloudmadeAttribution, styleId: 997}).addTo(map);
+                    L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: defaults.cloudmadeAttribution, styleId: 997}).addTo(map);
 
                     L.control.scale().addTo(map);
 

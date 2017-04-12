@@ -424,16 +424,13 @@ class openStreetMaps extends plxPlugin {
 	};
 	'."\n";
 	endif;
-//echo '<script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>';
+
 echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.'openStreetMaps/leaflet.js"></script>'."\n";
-//var_dump($_SERVER);
+
 echo '
 <script type="text/javascript">
 '.$map.'
-	//L.Icon.Default.imagePath = "http://cdn.leafletjs.com/leaflet-0.7.2/images";
-	//L.Icon.Default.imagePath = "http://'.$_SERVER["HTTP_HOST"].str_replace('.','',PLX_PLUGINS).'openStreetMaps/images";
 	var map = L.map(\'map\').setView(['.$this->getParam('latitude').', '.$this->getParam('longitude').'], '.$this->getParam('zoom').');'."\t
-	//L.tileLayer('http://otile1.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {//https://wiki.openstreetmap.org/wiki/Tiles
 	L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		attribution: 'Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"openstreetmap.org\">openstreetmap.org</a>',
 		maxZoom: 18

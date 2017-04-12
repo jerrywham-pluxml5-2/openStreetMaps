@@ -93,52 +93,20 @@ for($i=1; $i < 19 ; $i++) {
 
 ?>
 <style>
-	h3 { margin:10px;font-weight: bolder; }
-	#panneau_exemple { width:550px;float: right;margin-left:5%;background: #FFF48D;padding:10px;border: 1px solid #A1A1A1; }
-	#panneau_config { min-width:500px;float: left; }
-	#optionsPopUp, #divCp, #divCoord { border-left:double #A1A1A1;padding:10px;margin-left:50px; }
-	.bleu { color:blue; }
-	.vert { color:green; }
-	.rouge { color:red; }
+	h3{margin:10px;font-weight:bolder;}
+	#panneau_exemple{max-width:50%;float:left;background:#FFF48D;padding:10px;border:1px solid #A1A1A1;}
+	#panneau_config{float:left;}
+	#optionsPopUp,#divCp,#divCoord{border-left:double #A1A1A1;padding:10px;margin-left:50px;}
+	.bleu{color:blue;}
+	.vert{color:green;}
+	.rouge{color:red;}
+	@media (max-width: 1080px) {#panneau_exemple {max-width:100%;}}
 </style>
 
-<div id="panneau_exemple">
-	<h2>Exemples de chemin vers le fichier xml source</h2>
-	<p>data/configuration/plugin.adhesion.adherents.xml</p>
-	<h2>Exemples de fichier xml source</h2>
-	<h3>Type Code postal</h3>
-	<pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
-<span class="bleu">&lt;document&gt;</span>
-	<span class="rouge">&lt;adherent number="00001"&gt;</span>
-		<span class="bleu">&lt;nom&gt;</span><span class="vert">&lt;![CDATA[Tryphon]]&gt;</span><span class="bleu">&lt;/nom&gt;</span>
-		<span class="bleu">&lt;prenom&gt;</span><span class="vert">&lt;![CDATA[Tournesol]]&gt;</span><span class="bleu">&lt;/prenom&gt;</span>
-		<span class="bleu">&lt;adresse1&gt;</span><span class="vert">&lt;![CDATA[Château de Moulinsart]]&gt;</span><span class="bleu">&lt;/adresse1&gt;</span>
-		<span class="bleu">&lt;adresse2&gt;</span><span class="vert">&lt;![CDATA[]]&gt;</span><span class="bleu">&lt;/adresse2&gt;</span>
-		<span class="rouge">&lt;cp&gt;</span><span class="vert">&lt;![CDATA[75000]]&gt;</span><span class="rouge">&lt;/cp&gt;</span>
-		<span class="rouge">&lt;ville&gt;</span><span class="vert">&lt;![CDATA[Paris]]&gt;</span><span class="rouge">&lt;/ville&gt;</span>
-	<span class="rouge">&lt;/adherent&gt;</span>
-<span class="bleu">&lt;document&gt;</span>
-	</pre>
-	<h3>Type Coordonnées</h3>
-	<pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
-<span class="bleu">&lt;document&gt;</span>
-	<span class="rouge">&lt;coordonnees number="00001"&gt;</span>
-		<span class="bleu">&lt;nom&gt;</span><span class="vert">&lt;![CDATA[Paris]]&gt;</span><span class="bleu">&lt;/nom&gt;</span>
-		<span class="rouge">&lt;latitude&gt;</span><span class="vert">&lt;![CDATA[48.8566]]&gt;</span><span class="rouge">&lt;/latitude&gt;</span>
-		<span class="rouge">&lt;longitude&gt;</span><span class="vert">&lt;![CDATA[2.3538]]&gt;</span><span class="rouge">&lt;/longitude&gt;</span>
-	<span class="rouge">&lt;/coordonnees&gt;</span>
-<span class="bleu">&lt;document&gt;</span>
-	</pre>
-	<p>Les trois items les plus importants sont ceux surlignés en rouge.</p>
-	<p>&nbsp;</p>
-	<p>Dans le premier exemple ci-dessus, l'item principal est "adherent".</p>
-	<p>Les items secondaires sont "cp" et "ville".</p>
-	<p>&nbsp;</p>
-	<p>Vous pouvez avoir des noms différents mais vous devez conserver la structure de base (constituée par les 3 items rouges).</p>
-</div>
-<div id="panneau_config">
-<h2><?php echo $plxPlugin->getInfo('title') ?></h2>
-
+<div id="panneau_config" class="col-md-6">
+<?php if (!defined('PLX_VERSION')) {#avant 5.5 ?>
+ <h2><?php echo $plxPlugin->getInfo('title') ?></h2>
+<?php } ?>
 <form action="parametres_plugin.php?p=openStreetMaps" method="post">
 	<fieldset>
 		<p class="field"><label for="id_pageName"><?php $plxPlugin->lang('L_STATIC_PAGE_TITLE') ?>&nbsp;:</label></p>
@@ -195,7 +163,7 @@ for($i=1; $i < 19 ; $i++) {
 		<p>
 
 		<h3><?php $plxPlugin->lang('L_POP_UP') ?></h3>
-		<p><label for="id_showpopup"><?php $plxPlugin->lang('L_SHOW_POP_UP') ?>&nbsp;:</label><input type="checkbox" id="id_showpopup" name="showpopup" onclick="toogle();" <?php echo $showpopup == 'on' ? 'checked="checked"' : ''; ?>></p>
+		<p><label for="id_showpopup"><?php $plxPlugin->lang('L_SHOW_POP_UP') ?>&nbsp;:</label><input type="checkbox" id="id_showpopup" name="showpopup" onclick="toogle('optionsPopUp');" <?php echo $showpopup == 'on' ? 'checked="checked"' : ''; ?>></p>
 		<div id="optionsPopUp" <?php echo $showpopup == 'on' ? '': 'style="display:none;"';?>>
 			<p class="field"><label for="id_popupLatitude"><?php $plxPlugin->lang('L_POP_UP_LATITUDE') ?>&nbsp;:</label></p>
 			<?php plxUtils::printInput('popupLatitude',$popupLatitude,'text','20-30') ?>
@@ -208,31 +176,69 @@ for($i=1; $i < 19 ; $i++) {
 
 		<h3><?php $plxPlugin->lang('L_OPTIONAL') ?></h3>
 		<p class="field"><label for="id_itemnom"><?php $plxPlugin->lang('L_SOURCE_ITEM_NOM') ?>&nbsp;:</label></p>
-		<?php plxUtils::printInput('itemnom',$itemnom,'text','20-12') ?>
+		<?php plxUtils::printInput('itemnom',$itemnom,'text','20-120') ?>
 		<p class="field"><label for="id_itemval"><?php $plxPlugin->lang('L_SOURCE_ITEM_VAL') ?>&nbsp;:</label></p>
-		<?php plxUtils::printInput('itemval',$itemval,'text','20-12') ?>
+		<?php plxUtils::printInput('itemval',$itemval,'text','20-120') ?>
 		<p class="field"><label for="id_dataval"><?php $plxPlugin->lang('L_DATA_ITEM_VAL') ?>&nbsp;:</label></p>
 		<?php plxUtils::printInput('dataval',$dataval,'text','20-120') ?>
 		<p class="field"><label for="id_itemcoord"><?php $plxPlugin->lang('L_SOURCE_ITEM_COORD') ?>&nbsp;:</label></p>
-		<?php plxUtils::printInput('itemcoord',$itemcoord,'text','20-12') ?>
+		<?php plxUtils::printInput('itemcoord',$itemcoord,'text','20-120') ?>
 		<p class="field"><label for="id_datacoord"><?php $plxPlugin->lang('L_DATA_ITEM_COORD') ?>&nbsp;:</label></p>
 		<?php plxUtils::printInput('datacoord',$datacoord,'text','20-120') ?>
 		<p></p>
-		<p>
+		<p class="in-action-bar">
 			<?php echo plxToken::getTokenPostMethod() ?>
 			<input type="submit" name="submit" value="<?php $plxPlugin->lang('L_SAVE') ?>" />
 		</p>
 	</fieldset>
 </form>
 </div>
+
+<?php $baseImgUri = PLX_PLUGINS.get_class($plxPlugin).'/images/'; ?>
+<a onclick="toogle('panneau_exemple');" style="float:left;cursor:help;"><img style="width:16px;" id="img_panneau_exemple" src="<?php echo $baseImgUri.'zoom-in.png'; ?>" title="Bascule des exemples" /></a>
+<div id="panneau_exemple" class="col-md-6" style="display:none;">
+	<h2>Exemples de chemin vers le fichier xml source</h2>
+	<p>data/configuration/plugin.adhesion.adherents.xml</p>
+	<h2>Exemples de fichier xml source</h2>
+	<h3>Type Code postal</h3>
+	<pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+<span class="bleu">&lt;document&gt;</span>
+	<span class="rouge">&lt;adherent number="00001"&gt;</span>
+		<span class="bleu">&lt;nom&gt;</span><span class="vert">&lt;![CDATA[Tryphon]]&gt;</span><span class="bleu">&lt;/nom&gt;</span>
+		<span class="bleu">&lt;prenom&gt;</span><span class="vert">&lt;![CDATA[Tournesol]]&gt;</span><span class="bleu">&lt;/prenom&gt;</span>
+		<span class="bleu">&lt;adresse1&gt;</span><span class="vert">&lt;![CDATA[Château de Moulinsart]]&gt;</span><span class="bleu">&lt;/adresse1&gt;</span>
+		<span class="bleu">&lt;adresse2&gt;</span><span class="vert">&lt;![CDATA[]]&gt;</span><span class="bleu">&lt;/adresse2&gt;</span>
+		<span class="rouge">&lt;cp&gt;</span><span class="vert">&lt;![CDATA[75000]]&gt;</span><span class="rouge">&lt;/cp&gt;</span>
+		<span class="rouge">&lt;ville&gt;</span><span class="vert">&lt;![CDATA[Paris]]&gt;</span><span class="rouge">&lt;/ville&gt;</span>
+	<span class="rouge">&lt;/adherent&gt;</span>
+<span class="bleu">&lt;document&gt;</span>
+	</pre>
+	<h3>Type Coordonnées</h3>
+	<pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+<span class="bleu">&lt;document&gt;</span>
+	<span class="rouge">&lt;coordonnees number="00001"&gt;</span>
+		<span class="bleu">&lt;nom&gt;</span><span class="vert">&lt;![CDATA[Paris]]&gt;</span><span class="bleu">&lt;/nom&gt;</span>
+		<span class="rouge">&lt;latitude&gt;</span><span class="vert">&lt;![CDATA[48.8566]]&gt;</span><span class="rouge">&lt;/latitude&gt;</span>
+		<span class="rouge">&lt;longitude&gt;</span><span class="vert">&lt;![CDATA[2.3538]]&gt;</span><span class="rouge">&lt;/longitude&gt;</span>
+	<span class="rouge">&lt;/coordonnees&gt;</span>
+<span class="bleu">&lt;document&gt;</span>
+	</pre>
+	<p>Les trois items les plus importants sont ceux surlignés en rouge.</p>
+	<p>&nbsp;</p>
+	<p>Dans le premier exemple ci-dessus, l'item principal est "adherent".</p>
+	<p>Les items secondaires sont "cp" et "ville".</p>
+	<p>&nbsp;</p>
+	<p>Vous pouvez avoir des noms différents mais vous devez conserver la structure de base (constituée par les 3 items rouges).</p>
+</div>
 <script type="text/javascript">
-	var toogle = function() {
-		var myDiv = document.getElementById('optionsPopUp');
-		
+	var toogle = function(qui) {
+		var myDiv = document.getElementById(qui);
+		var exemp = qui.search('exemple')?true:false; 
+		var toggl = exemp?document.getElementById('img_'+qui):''; 
 		if (myDiv.style.display == 'none') {
-			myDiv.style.display = 'block';
+			myDiv.style.display = 'block'; if(exemp) toggl.src = '<?php echo $baseImgUri.'zoom-out.png'; ?>';
 		} else {
-			myDiv.style.display = 'none';
+			myDiv.style.display = 'none'; if(exemp) toggl.src = '<?php echo $baseImgUri.'zoom-in.png'; ?>';
 		}
 	}
 	var toogleType = function() {

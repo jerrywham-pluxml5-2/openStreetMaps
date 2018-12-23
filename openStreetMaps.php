@@ -4,10 +4,10 @@
  *
  * @author	Cyril MAGUIRE
  **/
-require_once PLX_PLUGINS.'openStreetMaps/lib/medoo.php';
+require_once PLX_PLUGINS.'openStreetMaps/lib/medoo.min.php';
 class openStreetMaps extends plxPlugin {
 
-	public $list = array('valides' => ''); # Tableau des codes postaux sources
+	public $list; # Tableau des codes postaux sources
 	public $plxGlob_sources; # Objet listant les fichiers sources
 
 	/**
@@ -22,6 +22,7 @@ class openStreetMaps extends plxPlugin {
         # appel du constructeur de la classe plxPlugin (obligatoire)
         parent::__construct($default_lang);
 
+		$this->list = array('valides' => ''); #init
 		# droits pour accèder à la page config.php du plugin
 		$this->setConfigProfil(PROFIL_ADMIN);
 
@@ -178,10 +179,10 @@ class openStreetMaps extends plxPlugin {
 	}
 	/**
 	 * Méthode qui récupère les informations enregistrées dans le fichier xml source
-	 * 
+	 *
 	 * @param $filename ressource le chemin vers le fichier source indiqué dans la configuration
 	 * @return array
-	 * 
+	 *
 	 * @author Cyril MAGUIRE
 	 */
 	public function getRecords($filename) {
@@ -195,6 +196,7 @@ class openStreetMaps extends plxPlugin {
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,0);
 		xml_parse_into_struct($parser,$data,$values,$iTags);
 		xml_parser_free($parser);
+		
 		if(isset($iTags[$this->getParam('item_principal')]) AND isset($iTags[$this->getParam('itemcp')])) {
 			$nb = sizeof($iTags[$this->getParam('itemcp')]);
 			$size=ceil(sizeof($iTags[$this->getParam('item_principal')])/$nb);
@@ -217,11 +219,11 @@ class openStreetMaps extends plxPlugin {
 				}
 				if  ($this->getParam('itemnom') != '') {
 					# Récupération du nom à afficher dans la pop-up
-					//$nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
-					$nom = strtoupper($tmp['Nom']);
+					$nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
+					//$nom = strtoupper($tmp['Nom']);
 				}
 				$this->list[$ville][] = array(
-					'NUM' => $tmp['Id'],
+					'NUM' => $i,//$tmp['Id']
 					'VAL' => $val,
 					'COORD'=> $coord,
 					'NOM'	=> $nom,
@@ -231,6 +233,40 @@ class openStreetMaps extends plxPlugin {
 				if ($val == 1) {
 					$this->list['valides'] .= $nom;
 				}
+			}
+		}
+		elseif(isset($iTags[$this->getParam('item_principal_coord')]) AND isset($iTags[$this->getParam('itemlat')]) AND isset($iTags[$this->getParam('itemlong')])) {
+			unset($this->list);
+			$nb = sizeof($iTags[$this->getParam('itemlat')]);
+			for($i=0;$i<$nb;$i++) {
+				$val = '';// incertain de l'utilité de cette ligne (plugin adhesion) 
+				$nom = '';
+				$lat = '';
+				$long = '';
+				if  ($this->getParam('itemval') != '') {// incertain de l'utilité de ce if 
+					# Récupération de la validité de l'inscription
+					$val = plxUtils::getValue($values[$iTags[$this->getParam('itemval')][$i]]['value']);
+				}
+				if  ($this->getParam('itemlat') != '') {
+					# Récupération de la lattitude
+					$lat = plxUtils::getValue($values[$iTags[$this->getParam('itemlat')][$i]]['value']);
+				}
+				if  ($this->getParam('itemlong') != '') {
+					# Récupération de la lattitude
+					$long = plxUtils::getValue($values[$iTags[$this->getParam('itemlong')][$i]]['value']);
+				}
+				if  ($this->getParam('itemnom') != '') {
+					# Récupération du nom à afficher dans la pop-up
+					//~ $nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
+					$nom = plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value']);
+				}
+				$this->list[$i] = array(
+					'NUM' => $i,//$tmp['Id']
+					'NOM'	=> $nom,
+					'LAT' => $lat,
+					'LONG' => $long,
+				);
+				if ($val == $this->getParam('itemval')) {$this->list[$i]['valides'] = $nom;}// incertain de l'utilité de cette ligne 
 			}
 		}
 		return $this->list;
@@ -244,7 +280,7 @@ class openStreetMaps extends plxPlugin {
 	*
 	* @author Cyril MAGUIRE
 	*/
-    public function search($town,$cp) {
+	public function search($town,$cp) {
 		$dbTowns = new medoo(array(
 			'db' => 'gps',
 			'database_type' => 'sqlite',
@@ -252,41 +288,41 @@ class openStreetMaps extends plxPlugin {
 			)
 		);
 		$town = strtolower($town);
-        $result = $dbTowns->select('towns', array('lat', 'lon'), array(
-        	'AND'=> array(
-           		'cp' => $cp,
-           		'nom' => $town
-           		)
-            )
-        );
-        if (count($result) == 1) {
-        	$result = $result[0];
-        }
-        if (empty($result)) {
-        	$result = $this->Nominatim($town,$cp);
-        	$last_id = $dbTowns->insert('towns', array(
-        			'lat' => $result['lat'],
-        			'lon' => $result['lon'],
-        			'cp' => $cp,
-        			'nom' => $town
-        		)
-        	);
-        }
-        return $result;
-    }
-	
-    public function Nominatim($town,$cp) {
-    	$c = file_get_contents('http://nominatim.openstreetmap.org/search/?format=json&country=france&city='.urlencode($town).'&postcode='.$cp);
+		$result = $dbTowns->select('towns', array('lat', 'lon'), array(
+			'AND'=> array(
+		   		'cp' => $cp,
+		   		'nom' => $town
+		   		)
+		    )
+		);
+		if (count($result) == 1) {
+			$result = $result[0];
+		}
+		if (empty($result)) {
+			$result = $this->Nominatim($town,$cp);
+			$last_id = $dbTowns->insert('towns', array(
+					'lat' => $result['lat'],
+					'lon' => $result['lon'],
+					'cp' => $cp,
+					'nom' => $town
+				)
+			);
+		}
+		 return $result;
+	}
+
+	public function Nominatim($town,$cp) { /*updated*/
+		$c = file_get_contents('http://nominatim.openstreetmap.org/search?format=json&country=france&city='.urlencode($town).'&postalcode='.$cp);
 		$c = json_decode($c);
 		$result['lat'] = $c[0]->lat;
 		$result['lon'] = $c[0]->lon;
 		return $result;
-    }
+	}
 	/**
 	 * Méthode qui ajoute les fichiers js dans le pied de page du thème
 	 *
 	 * @return	stdio
-	 * @author	Cyril MAGUIRE
+	 * @author	Cyril MAGUIRE, updated:GeoJson+leaflet1.0.3 Thomas Ingles
 	 **/
 	public function ThemeEndBody() {
 		if ($this->getParam('type') == 1) :
@@ -320,28 +356,37 @@ class openStreetMaps extends plxPlugin {
 						foreach ($marker as $k => $v) {
 							$GPS[$ville]['lon'] = $GPS[$ville]['lon']+($k*0.0001);
 							if (!empty($GPS[$ville]) && !empty($GPS[$ville]['lon']) && !empty($GPS[$ville]['lat']) ) {
-								if ($this->getParam('itemnom') != '') {
-									// Si l'affichage nécessite une autorisation, on vérifie que les paramètres ne sont pas vides
-									if ($v['VAL'] == $this->getParam('dataval') && $this->getParam('dataval') != '' && $v['COORD'] == $this->getParam('datacoord') && $this->getParam('datacoord') != '') {
-										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : '.$v['NOM'].'\' },'."\n";
-										//S'il faut un affichage et qu'il ne nécessite pas d'autorisation
-									} elseif($this->getParam('dataval') == '' && $this->getParam('datacoord') == '') {
-										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : '.$v['NOM'].'\'
-										},'."\n";
-										//Sinon
-									} else {
-										$map .= '{latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].', click : \''.$v['VILLE'].' : Non renseigné\' },'."\n";
-									}
-								} else {
-									$map .= '{/*'.$v['VILLE'].'*/ latitude : '.$GPS[$ville]['lat'].', longitude : '.$GPS[$ville]['lon'].'},'."\n";
-								}	
-							}  else {
-								$map .= '//'.$v['VILLE'].' '.$v['NUM']."\n";
+							$map .= '
+			{
+				"geometry": {
+					"type": "Point",
+					"coordinates": ['.$GPS[$ville]['lon'].', '.$GPS[$ville]['lat'].']
+				},
+				"type": "Feature",
+				"properties": {
+				';
+							if ($this->getParam('itemnom') != '') {
+								$map .= '		"popupContent": "'.$v['VILLE'].' : '.$v['NOM'].'"';
+							} else {
+								$map .= '		"popupContent": "&nbsp;"';
 							}
+							$map .= '
+				},
+				"id": '.$v['NUM'].'
+			},';
+							}
+						}
+						if ($map != '') {
+						$mapFeatures = 'var geosmjsonFeatures = {
+    "type": "FeatureCollection",
+    "features": ['.substr($map, 0,-1)/* del last comma ',' of loop{feature} */.'
+			]
+		};
+		'."\n";
 						}
 					}
 				}
-				$map = substr($map, 0,-2);
+				$map = substr($mapFeatures, 0,-2);
 				file_put_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$adherents.'.txt', $map);
 			} else {
 				$map = file_get_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$coordonnees[2]);
@@ -350,44 +395,64 @@ class openStreetMaps extends plxPlugin {
 		# Récupération des coordonnées à afficher sur la carte
 		$COORD = $this->getRecords(PLX_ROOT.$this->getParam('source'));
 
-		$map = '';
-		# Mise en forme des coordonnées
+		$map = 'var geosmjsonFeatures = {
+    "type": "FeatureCollection",
+    "features": [';
+		# Mise en forme des coordonnées (http://geojson.org/) /!\ coordonnées inversé (LONG in 1st) /!\
 		foreach ($COORD as $i => $marker) {
+			$map .= '
+			{
+				"geometry": {
+					"type": "Point",
+					"coordinates": ['.$marker['LONG'].', '.$marker['LAT'].']
+				},
+				"type": "Feature",
+				"properties": {
+				';
 				if ($this->getParam('itemnom') != '') {
-					$map .= '{ latitude : '.$marker['LAT'].', longitude : '.$marker['LONG'].', click : \''.$marker['NOM'].'\'},'."\n";
+					$map .= ' "popupContent": "'.$marker['NOM'].'"';
 				} else {
-					$map .= '{ latitude : '.$marker['LAT'].', longitude : '.$marker['LONG'].'},'."\n";
+					$map .= ' "popupContent": "&nbsp;"';
 				}	
+				$map .= '
+				},
+				"id": '.$marker['NUM'].'
+			},';
 		}
-		$map = substr($map, 0,-2);
+		$map = substr($map, 0,-1)/* del last comma ',' of loop{feature} */.'
+		]
+	};
+	'."\n";
+	endif;
 
-		endif;
+echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.'openStreetMaps/leaflet.js"></script>'."\n";
 
-		echo "\t".'<script type="text/javascript">
-				if(typeof(jQuery) === "undefined") {document.write(\'<script  type="text/javascript" src="<?php echo PLX_PLUGINS; ?>openStreetMaps/jQuery.1.8.1.min.js"><\/script>\');}
-			</script>'."\n";
-		echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.'openStreetMaps/leaflet-0.4.js"></script>'."\n";
-		echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.'openStreetMaps/osmLeaflet.jquery.js"></script>'."\n";
-		echo "\t".'<script>
-					    $(document).ready(function () {
-					        var $mini_map = $("#mini_map");
+echo '
+<script type="text/javascript">
+'.$map.'
+	var map = L.map(\'map\').setView(['.$this->getParam('latitude').', '.$this->getParam('longitude').'], '.$this->getParam('zoom').');'."\t
+	L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		attribution: 'Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"openstreetmap.org\">openstreetmap.org</a>',
+		maxZoom: 18
+	}).addTo(map);
 
-					       // Map de démo centrale
-					        $mini_map.osmLeaflet({
-					            zoom      : '.$this->getParam('zoom').',
-					            latitude  : '.$this->getParam('latitude').',
-					            longitude : '.$this->getParam('longitude').'
-					        });'.($this->getParam('showpopup') == 'on' ?
-							'$mini_map.osmLeaflet(\'addPopup\', {
-					            latitude  : '.$this->getParam('popupLatitude').',
-					            longitude : '.$this->getParam('popupLongitude').',
-					            content   : \''.str_replace("'","&#039;",$this->getParam('popupTexte')).'\'
-					        });' : '').'
-					        $mini_map.osmLeaflet(\'addMarker\', [
-					            '.$map.'
-					        ]);
-					    });
-					</script>
+	function onEachFeature(feature, layer) {
+		var popupContent = feature.properties.popupContent;
+		layer.bindPopup(popupContent);
+	}
+	".($this->getParam('showpopup') == 'on' ?
+		'var popup = L.popup()
+		.setLatLng(['.$this->getParam('popupLatitude').', '.$this->getParam('popupLongitude').'])
+		.setContent("'.str_replace("'","&#039;",$this->getParam('popupTexte')).'")
+		.openOn(map);
+' : '').($marker?'
+	L.geoJson(geosmjsonFeatures, {
+		style: function (feature) {return feature.properties && feature.properties.style;},
+		onEachFeature: onEachFeature /*,
+		pointToLayer: function (feature, latlng) {return L.circleMarker(latlng, {radius: 7,fillColor: "#ff7800",color: "#000",weight: 1,opacity: 1,fillOpacity: 0.8});}*/
+	}).addTo(map);
+':'').'
+</script>
 ';
 	}
 

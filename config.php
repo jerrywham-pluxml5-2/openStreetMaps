@@ -1,10 +1,22 @@
 <?php if(!defined('PLX_ROOT')) exit;
-
-
 # Control du token du formulaire
 plxToken::validateFormToken($_POST);
-
 if(!empty($_POST)) {
+	# purge des listings
+	if (isset($_POST['purge'])) {
+		$_SESSION['info'] = '';
+		$file = PLX_PLUGINS.get_class($plxPlugin).'/listing/*.txt';
+		$files = glob($file);# get all file names
+		foreach($files as $file){# iterate files
+			if(is_file($file)){
+				unlink($file);# delete file
+				$_SESSION['info'] .= sprintf($plxPlugin->getLang('L_DELETED'),$file).'<br />';#L_DELETE_SUCCESSFUL
+			}
+		}
+		$_SESSION['info'] .= $plxPlugin->getLang('L_PURGED');
+		header('Location: '.$plxAdmin->racine.$plxAdmin->path_url);#parametres_plugin.php?p=openStreetMaps
+		exit;
+	}
 	$plxPlugin->setParam('pageName', $_POST['pageName'], 'string');
 	$plxPlugin->setParam('mnuDisplay', $_POST['mnuDisplay'], 'numeric');
 	$plxPlugin->setParam('mnuName', $_POST['mnuName'], 'string');
@@ -25,6 +37,7 @@ if ($_POST['type'] == 1) {
 	$plxPlugin->setParam('width', $_POST['width'], 'numeric');
 	$plxPlugin->setParam('unit', $_POST['unit'], 'string');
 	$plxPlugin->setParam('height', $_POST['height'], 'numeric');
+	$plxPlugin->setParam('zindex', $_POST['zindex'], 'numeric');
 
 	$plxPlugin->setParam('latitude', $_POST['latitude'], 'string');
 	$plxPlugin->setParam('longitude', $_POST['longitude'], 'string');
@@ -41,7 +54,7 @@ if ($_POST['type'] == 1) {
 	$plxPlugin->setParam('itemcoord', $_POST['itemcoord'], 'string');
 	$plxPlugin->setParam('datacoord', $_POST['datacoord'], 'string');
 	$plxPlugin->saveParams();
-	header('Location: parametres_plugin.php?p=openStreetMaps');
+	header('Location: '.$plxAdmin->racine.$plxAdmin->path_url);#parametres_plugin.php?p=openStreetMaps
 	exit;
 }
 $pageName =  $plxPlugin->getParam('pageName')=='' ? 'Localisation' : $plxPlugin->getParam('pageName');
@@ -49,7 +62,7 @@ $mnuDisplay =  $plxPlugin->getParam('mnuDisplay')=='' ? 1 : $plxPlugin->getParam
 $mnuName =  $plxPlugin->getParam('mnuName')=='' ? $plxPlugin->getLang('L_DEFAULT_MENU_NAME') : $plxPlugin->getParam('mnuName');
 $mnuPos =  $plxPlugin->getParam('mnuPos')=='' ? 2 : $plxPlugin->getParam('mnuPos');
 $template = $plxPlugin->getParam('template')=='' ? 'static.php' : $plxPlugin->getParam('template');
-$source = $plxPlugin->getParam('source')=='' ? 'plugins/openStreetMaps/source.exemple.xml' : $plxPlugin->getParam('source');
+$source = $plxPlugin->getParam('source')=='' ? 'plugins/'.get_class($plxPlugin).'/source.exemple.xml' : $plxPlugin->getParam('source');
 # Type de fichier source
 $type = $plxPlugin->getParam('type')=='' ? 1 : $plxPlugin->getParam('type');
 $show = $plxPlugin->getParam('type')==1 ? 'on' : '';
@@ -65,6 +78,7 @@ $itemlong = $plxPlugin->getParam('itemlong')=='' ? 'longitude' : $plxPlugin->get
 $width = $plxPlugin->getParam('width')=='' ? 90 : $plxPlugin->getParam('width');
 $unit = $plxPlugin->getParam('unit')=='' ? '%' : $plxPlugin->getParam('unit');
 $height = $plxPlugin->getParam('height')=='' ? 840 : $plxPlugin->getParam('height');
+$zindex = $plxPlugin->getParam('zindex')=='' ? 0 : $plxPlugin->getParam('zindex');
 # Localisation de la carte
 $latitude = $plxPlugin->getParam('latitude')=='' ? 45.8 : $plxPlugin->getParam('latitude');
 $longitude = $plxPlugin->getParam('longitude')=='' ? 2 : $plxPlugin->getParam('longitude');
@@ -87,7 +101,7 @@ if ($array = $files->query('/^static(-[a-z0-9-_]+)?.php$/')) {
 	foreach($array as $k=>$v)
 		$aTemplates[$v] = $v;
 }
-for($i=1; $i < 19 ; $i++) { 
+for($i=1; $i < 19 ; $i++) {
 	$aZoom[$i] = $i;
 }
 
@@ -106,8 +120,8 @@ for($i=1; $i < 19 ; $i++) {
 <div id="panneau_config" class="col-md-6">
 <?php if (!defined('PLX_VERSION')) {#avant 5.5 ?>
  <h2><?php echo $plxPlugin->getInfo('title') ?></h2>
-<?php } ?>
-<form action="parametres_plugin.php?p=openStreetMaps" method="post">
+<?php } #action="parametres_plugin.php?p=openStreetMaps" ?>
+<form method="post">
 	<fieldset>
 		<p class="field"><label for="id_pageName"><?php $plxPlugin->lang('L_STATIC_PAGE_TITLE') ?>&nbsp;:</label></p>
 		<?php plxUtils::printInput('pageName',$pageName,'text','20-60') ?>
@@ -126,7 +140,7 @@ for($i=1; $i < 19 ; $i++) {
 			<option <?php echo $show == 'on' ? 'selected="selected"' : '';?> value="1">Code postal</option>
 			<option <?php echo $show == 'on' ? '': 'selected="selected"';?> value="2">Coordonnées</option>
 		</select>
-				
+
 		<div id="divCp" <?php echo $show == 'on' ? '': 'style="display:none;"';?>>
 			<p class="field"><label for="id_item_principal"><?php $plxPlugin->lang('L_SOURCE_MAIN_ITEM') ?>&nbsp;:</label></p>
 			<?php plxUtils::printInput('item_principal',$item_principal,'text','20-120') ?>
@@ -151,7 +165,9 @@ for($i=1; $i < 19 ; $i++) {
 		<?php plxUtils::printSelect('unit',array('px'=>'px','%'=>'%'),$unit); ?>
 		<p class="field"><label for="id_height"><?php $plxPlugin->lang('L_FRAME_HEIGHT') ?>&nbsp;:</label></p>
 		<?php plxUtils::printInput('height',$height,'text','20-4') ?>
-		<p>
+		<p class="field"><label for="id_zindex"><?php $plxPlugin->lang('L_FRAME_ZINDEX') ?>&nbsp;:</label></p>
+		<?php plxUtils::printInput('zindex',$zindex,'text','20-4') ?>
+
 
 		<h3><?php $plxPlugin->lang('L_POS') ?></h3>
 		<p class="field"><label for="id_latitude"><?php $plxPlugin->lang('L_LATITUDE') ?>&nbsp;:</label></p>
@@ -189,6 +205,7 @@ for($i=1; $i < 19 ; $i++) {
 		<p class="in-action-bar">
 			<?php echo plxToken::getTokenPostMethod() ?>
 			<input type="submit" name="submit" value="<?php $plxPlugin->lang('L_SAVE') ?>" />
+			<input type="submit" name="purge" value="<?php $plxPlugin->lang('L_PURGE_BTN') ?>" />
 		</p>
 	</fieldset>
 </form>
@@ -233,8 +250,8 @@ for($i=1; $i < 19 ; $i++) {
 <script type="text/javascript">
 	var toogle = function(qui) {
 		var myDiv = document.getElementById(qui);
-		var exemp = qui.search('exemple')?true:false; 
-		var toggl = exemp?document.getElementById('img_'+qui):''; 
+		var exemp = qui.search('exemple')?true:false;
+		var toggl = exemp?document.getElementById('img_'+qui):'';
 		if (myDiv.style.display == 'none') {
 			myDiv.style.display = 'block'; if(exemp) toggl.src = '<?php echo $baseImgUri.'zoom-out.png'; ?>';
 		} else {
@@ -244,7 +261,7 @@ for($i=1; $i < 19 ; $i++) {
 	var toogleType = function() {
 		var Cp = document.getElementById('divCp');
 		var Coord = document.getElementById('divCoord');
-		
+
 		if (Cp.style.display == 'none') {
 			Cp.style.display = 'block';
 			Coord.style.display = 'none';

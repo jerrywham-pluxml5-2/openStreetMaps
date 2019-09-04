@@ -4,9 +4,9 @@
  *
  * @author	Cyril MAGUIRE
  **/
-require_once PLX_PLUGINS.'openStreetMaps/lib/medoo.min.php';
+require_once 'lib/medoo.min.php';
 class openStreetMaps extends plxPlugin {
-
+	public $v = '1.5.1';#leaflet release
 	public $list; # Tableau des codes postaux sources
 	public $plxGlob_sources; # Objet listant les fichiers sources
 
@@ -19,26 +19,26 @@ class openStreetMaps extends plxPlugin {
 	 **/
 	public function __construct($default_lang) {
 
-        # appel du constructeur de la classe plxPlugin (obligatoire)
-        parent::__construct($default_lang);
+		# appel du constructeur de la classe plxPlugin (obligatoire)
+		parent::__construct($default_lang);
 
 		$this->list = array('valides' => ''); #init
 		# droits pour accèder à la page config.php du plugin
 		$this->setConfigProfil(PROFIL_ADMIN);
 
-        # déclaration des hooks
-        # pas de traitement javascript si l'on n'est pas sur la page localisation
+		# déclaration des hooks
+		# pas de traitement javascript si l'on n'est pas sur la page localisation
 		if(isset($_SERVER['QUERY_STRING']) AND $_SERVER['QUERY_STRING']!='' AND preg_match('/(localisation)/', $_SERVER['QUERY_STRING']) ) {
 			$this->addHook('ThemeEndHead', 'ThemeEndHead');
 			$this->addHook('ThemeEndBody', 'ThemeEndBody');
 		}
-        $this->addHook('plxMotorPreChauffageBegin', 'plxMotorPreChauffageBegin');
+		$this->addHook('plxMotorPreChauffageBegin', 'plxMotorPreChauffageBegin');
 		$this->addHook('plxShowConstruct', 'plxShowConstruct');
-        $this->addHook('plxShowStaticListEnd', 'plxShowStaticListEnd');
+		$this->addHook('plxShowStaticListEnd', 'plxShowStaticListEnd');
 		$this->addHook('plxShowPageTitle', 'plxShowPageTitle');
 		$this->addHook('SitemapStatics', 'SitemapStatics');
 
-    }
+	}
 
 	/**
 	 * Méthode de traitement du hook plxShowConstruct
@@ -46,10 +46,10 @@ class openStreetMaps extends plxPlugin {
 	 * @return	stdio
 	 * @author	Cyril MAGUIRE
 	 **/
-    public function plxShowConstruct() {
+	public function plxShowConstruct() {
 
 		# infos sur la page statique
-		$string  = "if(\$this->plxMotor->mode=='openStreetMaps') {";
+		$string  = "if(\$this->plxMotor->mode=='".__CLASS__."') {";
 		$string .= "	\$array = array();";
 		$string .= "	\$array[\$this->plxMotor->cible] = array(
 			'name'		=> '".$this->getParam('pageName')."',
@@ -62,7 +62,7 @@ class openStreetMaps extends plxPlugin {
 		$string .= "	\$this->plxMotor->aStats = array_merge(\$this->plxMotor->aStats, \$array);";
 		$string .= "}";
 		echo "<?php ".$string." ?>";
-    }
+	}
 
 	/**
 	 * Méthode de traitement du hook plxMotorPreChauffageBegin
@@ -70,7 +70,7 @@ class openStreetMaps extends plxPlugin {
 	 * @return	stdio
 	 * @author	Cyril MAGUIRE
 	 **/
-    public function plxMotorPreChauffageBegin() {
+	public function plxMotorPreChauffageBegin() {
 
 		$template = $this->getParam('template')==''?'static.php':$this->getParam('template');
 
@@ -78,8 +78,8 @@ class openStreetMaps extends plxPlugin {
 		if(\$this->get && preg_match('/^localisation\/?/',\$this->get)) {
 			if (isset(\$this->plxPlugins->aPlugins['adhesion'])){
 				if (isset(\$_SESSION['account'])) {
-					\$this->mode = 'openStreetMaps';
-					\$this->cible = '../../plugins/openStreetMaps/static';
+					\$this->mode = '".__CLASS__."';
+					\$this->cible = '../../plugins/".__CLASS__."/static';
 					\$this->template = '".$template."';
 					return true;
 				} else {
@@ -87,8 +87,8 @@ class openStreetMaps extends plxPlugin {
 					return true;
 				}
 			} else {
-				\$this->mode = 'openStreetMaps';
-				\$this->cible = '../../plugins/openStreetMaps/static';
+				\$this->mode = '".__CLASS__."';
+				\$this->cible = '../../plugins/".__CLASS__."/static';
 				\$this->template = '".$template."';
 				return true;
 			}
@@ -96,40 +96,39 @@ class openStreetMaps extends plxPlugin {
 		";
 
 		echo "<?php ".$string." ?>";
-    }
+	}
 
 	/**
 	 * Méthode de traitement du hook plxShowStaticListEnd
-	 *
+	 * Ajoute le menu "localisation"
 	 * @return	stdio
 	 * @author	Cyril MAGUIRE
 	 **/
-    public function plxShowStaticListEnd() {
+	public function plxShowStaticListEnd() {
 
 		# ajout du menu pour accèder à la page de localisation
 		if($this->getParam('mnuDisplay')) {
-			echo "<?php \$class = \$this->plxMotor->mode=='openStreetMaps'?'active':'noactive'; ?>";
+			echo "<?php \$class = \$this->plxMotor->mode=='".__CLASS__."'?'active':'noactive'; ?>";
 			# Si le plugin adhesion est présent et activé
 			echo '<?php if (isset($this->plxMotor->plxPlugins->aPlugins["adhesion"])){
 				# Utilisateur connecté
 				if (isset($_SESSION["account"])) {
 					foreach ($menus as $key => $value) {
-						if (strpos($value, "annuaire") !== false) {
+						if (!is_array($value) AND strpos($value, "annuaire") !== false) {
 							$tmp = preg_replace(\'/<li class="([a-z]+)">(.+)(<\/li>)/i\', \'<li class="$1">$2
 								<ul>
 									\', $value);
-							$menus[$key] = str_replace(\'<ul>\', \'<ul>
+							$menus[$key] = str_replace(\'<ul id="static-adhesion-account" class="sub-menu">\', \'<ul id="static-adhesion-account" class="sub-menu">
 									<li class="static \'.$class.\'"><a href="\'.$this->plxMotor->urlRewrite("?localisation.html").\'">'.$this->getParam("mnuName").'</a></li>
-								</ul>
-							</li>\', $tmp);
+								\', $tmp);
 						}
 					}
 				}
 			} else {
 				array_splice($menus, '.($this->getParam('mnuPos')-1).', 0, \'<li class="static \'.$class.\'"><a href="\'.$this->plxMotor->urlRewrite("?localisation.html").\'">'.$this->getParam('mnuName').'</a></li>\');
-			}?>';	
+			}?>';
 		}
-    }
+	}
 
 
 	/**
@@ -139,7 +138,7 @@ class openStreetMaps extends plxPlugin {
 	 * @author	Cyril MAGUIRE
 	 **/
 	public function ThemeEndHead(){
-		echo "\t".'<link rel="stylesheet" type="text/css" href="'.PLX_PLUGINS.'openStreetMaps/leaflet.css" media="screen"/>'."\n";
+		echo "\t".'<link rel="stylesheet" type="text/css" href="'.PLX_PLUGINS.__CLASS__.'/leaflet.css?v='.$this->v.'" media="screen"/>'."\n";
 	}
 
 	/**
@@ -150,8 +149,8 @@ class openStreetMaps extends plxPlugin {
 	 **/
 	public function plxShowPageTitle() {
 		echo '<?php
-			if($this->plxMotor->mode == "openStreetMaps") {
-				$this->plxMotor->plxPlugins->aPlugins["openStreetMaps"]->lang("'.$this->getParam('pageName').'");
+			if($this->plxMotor->mode == "'.__CLASS__.'") {
+				$this->plxMotor->plxPlugins->aPlugins["'.__CLASS__.'"]->lang("'.$this->getParam('pageName').'");
 				return true;
 			}
 		?>';
@@ -186,9 +185,9 @@ class openStreetMaps extends plxPlugin {
 	 * @author Cyril MAGUIRE
 	 */
 	public function getRecords($filename) {
-		
+
 		if(!is_file($filename)) return;
-		
+
 		# Mise en place du parseur XML
 		$data = implode('',file($filename));
 		$parser = xml_parser_create(PLX_CHARSET);
@@ -196,8 +195,8 @@ class openStreetMaps extends plxPlugin {
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,0);
 		xml_parse_into_struct($parser,$data,$values,$iTags);
 		xml_parser_free($parser);
-		
-		if(isset($iTags[$this->getParam('item_principal')]) AND isset($iTags[$this->getParam('itemcp')])) {
+
+		if(isset($iTags[$this->getParam('item_principal')], $iTags[$this->getParam('itemcp')])) {
 			$nb = sizeof($iTags[$this->getParam('itemcp')]);
 			$size=ceil(sizeof($iTags[$this->getParam('item_principal')])/$nb);
 			for($i=0;$i<$nb;$i++) {
@@ -208,7 +207,7 @@ class openStreetMaps extends plxPlugin {
 				# Récupération de la ville
 				$fullname = trim(strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemville')][$i]]['value']))));
 				$ville = str_replace(array(' ','-','_','Cedex','CEDEX','cedex','0','1','2','3','4','5','6','7','8','9'),'',$fullname);
-				
+
 				if  ($this->getParam('itemval') != '') {
 					# Récupération de la validité de l'inscription
 					$val = plxUtils::getValue($values[$iTags[$this->getParam('itemval')][$i]]['value']);
@@ -222,16 +221,16 @@ class openStreetMaps extends plxPlugin {
 					$nom = strtoupper(plxUtils::removeAccents(plxUtils::getValue($values[$iTags[$this->getParam('itemnom')][$i]]['value'])));
 					//$nom = strtoupper($tmp['Nom']);
 				}
-				$this->list[$ville][] = array(
-					'NUM' => $i,//$tmp['Id']
-					'VAL' => $val,
-					'COORD'=> $coord,
-					'NOM'	=> $nom,
-					'CP' => plxUtils::getValue($values[$iTags[$this->getParam('itemcp')][$i]]['value']),
-					'VILLE' => $fullname,
-				);
-				if ($val == 1) {
+				if ($val == 1 AND $coord != 'refus') {
 					$this->list['valides'] .= $nom;
+					$this->list[$ville][] = array(
+						'NUM' => $tmp['Id'],//$i
+						'VAL' => $val,
+						'COORD'=> $coord,
+						'NOM'	=> $nom,
+						'CP' => plxUtils::getValue($values[$iTags[$this->getParam('itemcp')][$i]]['value']),
+						'VILLE' => $fullname,
+					);
 				}
 			}
 		}
@@ -239,11 +238,11 @@ class openStreetMaps extends plxPlugin {
 			unset($this->list);
 			$nb = sizeof($iTags[$this->getParam('itemlat')]);
 			for($i=0;$i<$nb;$i++) {
-				$val = '';// incertain de l'utilité de cette ligne (plugin adhesion) 
+				$val = '';// incertain de l'utilité de cette ligne (plugin adhesion)
 				$nom = '';
 				$lat = '';
 				$long = '';
-				if  ($this->getParam('itemval') != '') {// incertain de l'utilité de ce if 
+				if  ($this->getParam('itemval') != '') {// incertain de l'utilité de ce if
 					# Récupération de la validité de l'inscription
 					$val = plxUtils::getValue($values[$iTags[$this->getParam('itemval')][$i]]['value']);
 				}
@@ -266,7 +265,7 @@ class openStreetMaps extends plxPlugin {
 					'LAT' => $lat,
 					'LONG' => $long,
 				);
-				if ($val == $this->getParam('itemval')) {$this->list[$i]['valides'] = $nom;}// incertain de l'utilité de cette ligne 
+				if ($val == $this->getParam('itemval')) {$this->list[$i]['valides'] = $nom;}// incertain de l'utilité de cette ligne
 			}
 		}
 		return $this->list;
@@ -284,38 +283,55 @@ class openStreetMaps extends plxPlugin {
 		$dbTowns = new medoo(array(
 			'db' => 'gps',
 			'database_type' => 'sqlite',
-			'database_file' => PLX_PLUGINS.'openStreetMaps/gps/gps.sqlite'
+			'database_file' => PLX_PLUGINS.__CLASS__.'/gps/gps.sqlite'
 			)
 		);
 		$town = strtolower($town);
 		$result = $dbTowns->select('towns', array('lat', 'lon'), array(
 			'AND'=> array(
-		   		'cp' => $cp,
-		   		'nom' => $town
-		   		)
-		    )
+				'cp' => $cp,
+				'nom' => $town
+				)
+			)
 		);
 		if (count($result) == 1) {
-			$result = $result[0];
+			return $result[0];
 		}
 		if (empty($result)) {
 			$result = $this->Nominatim($town,$cp);
-			$last_id = $dbTowns->insert('towns', array(
-					'lat' => $result['lat'],
-					'lon' => $result['lon'],
-					'cp' => $cp,
-					'nom' => $town
-				)
-			);
+			if(!empty($result)){
+				$last_id = $dbTowns->insert('towns', array(
+						'lat' => $result['lat'],
+						'lon' => $result['lon'],
+						'cp' => $cp,
+						'nom' => $town
+					)
+				);
+			}
 		}
 		 return $result;
 	}
 
-	public function Nominatim($town,$cp) { /*updated*/
-		$c = file_get_contents('http://nominatim.openstreetmap.org/search?format=json&country=france&city='.urlencode($town).'&postalcode='.$cp);
-		$c = json_decode($c);
-		$result['lat'] = $c[0]->lat;
-		$result['lon'] = $c[0]->lon;
+	public function Nominatim($town,$cp) { var_dump(__FUNCTION__,$town,$cp);/*updated*/
+		$result = array();
+		$url = 'https://nominatim.openstreetmap.org/search?format=json&country=france&city='.urlencode($town).'&postalcode='.$cp;
+		try{# extension_loaded('curl')
+			$curl_handle=curl_init();
+			curl_setopt($curl_handle, CURLOPT_URL,$url);
+			curl_setopt($curl_handle, CURLOPT_CONNECTTIMEOUT, 2);
+			curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($curl_handle, CURLOPT_USERAGENT, 'PluXml Plugin ' . __CLASS__);#Your application name
+			$c = curl_exec($curl_handle);
+			curl_close($curl_handle);
+		}catch (Exception $e) {
+			$c = @file_get_contents($url);#fix Warning: file_get_contents() with @
+		}
+		var_dump('BRUT',$c);
+		if($c AND $c != '[]'){#fix*  Notice: Trying to get property of non-object & Notice: Undefined offset: 0
+			$c = json_decode($c);
+			$result['lat'] = $c[0]->lat;#ici*
+			$result['lon'] = $c[0]->lon;# et ici*
+		}var_dump('END',$c,$result);
 		return $result;
 	}
 	/**
@@ -324,39 +340,63 @@ class openStreetMaps extends plxPlugin {
 	 * @return	stdio
 	 * @author	Cyril MAGUIRE, updated:GeoJson+leaflet1.0.3 Thomas Ingles
 	 **/
-	public function ThemeEndBody() {
+	public function ThemeEndBody() {//var_dump(__CLASS__.'->'.__FUNCTION__.'('.__LINE__.')');$e = new \Exception;var_dump($e->getTraceAsString());
 		if ($this->getParam('type') == 1) :
-		# Récupération des codes postaux à afficher sur la carte
-		if (is_file(PLX_ROOT.$this->getParam('source'))) {
-			$infos = $this->getRecords(PLX_ROOT.$this->getParam('source'));
-		} else {
-			$dir = trim($this->getParam('source'),'/').'/';
-			if (is_dir(PLX_ROOT.$dir)) {
-				$this->plxGlob_sources = plxGlob::getInstance(PLX_ROOT.$dir,false,true,'arts');
-				foreach ($this->plxGlob_sources->aFiles as $key => $file) {
-					$infos = $this->getRecords(PLX_ROOT.$dir.$file);
+			# Récupération des codes postaux à afficher sur la carte
+			if (is_file(PLX_ROOT.$this->getParam('source'))) {
+				$infos = $this->getRecords(PLX_ROOT.$this->getParam('source'));
+			} else {
+				$dir = trim($this->getParam('source'),'/').'/';
+				if (is_dir(PLX_ROOT.$dir)) {
+					$this->plxGlob_sources = plxGlob::getInstance(PLX_ROOT.$dir,false,true,'arts');
+					foreach ($this->plxGlob_sources->aFiles as $key => $file) {
+						$infos = $this->getRecords(PLX_ROOT.$dir.$file);
+					}
 				}
 			}
-		}
-		$adherents = md5($infos['valides']);
-		unset($infos['valides']);
-		$map = '';
-		$GPS = array();
-		$coordonnees = scandir(PLX_PLUGINS.'openStreetMaps/listing');
+			$showAnnuaire = false;
+			$plxMotor = plxMotor::getInstance();
+			if(isset($plxMotor->plxPlugins->aPlugins['adhesion'])) {
+				$showAnnuaire = ($plxMotor->plxPlugins->aPlugins['adhesion']->getParam('showAnnuaire') == 'on');
+			}
+			$adherents = md5($infos['valides']);
+			unset($infos['valides']);
+			$map = $mapFeatures = '';
+			$GPS = array();
+			$coordonnees = scandir(PLX_PLUGINS.__CLASS__.'/listing');
 			if(!isset($coordonnees[2]) || $coordonnees[2] != $adherents.'.txt') {
 				if (isset($coordonnees[2]) ) {
-					unlink(PLX_PLUGINS.'openStreetMaps/listing/'.$coordonnees[2]);
+					unlink(PLX_PLUGINS.__CLASS__.'/listing/'.$coordonnees[2]);
 				}
+				$plxMotor = plxMotor::getInstance();#utilisé pour urlRewrite() et adhesion
+
 				# Récupération des coordonnées
 				foreach ($infos as $ville => $marker) {
 					if (!empty($ville)) {
 						if (!isset($GPS[$ville])) {
 							$GPS[$ville] = $this->search(trim(str_replace(array('CEDEX','0','1','2','3','4','5','6','7','8','9'),'',$marker[0]['VILLE'])),$marker[0]['CP']);
 						}
+						#Fix : Notice: Undefined index lon
+						if(!isset($GPS[$ville]['lon'])) {
+							continue;
+						}
+
 						foreach ($marker as $k => $v) {
-							$GPS[$ville]['lon'] = $GPS[$ville]['lon']+($k*0.0001);
+							#$GPS[$ville]['lon'] = $GPS[$ville]['lon']+($k*0.0001);
+							if($k%2){#cargols
+#								$GPS[$ville]['lat'] = $GPS[$ville]['lat']+($k*0.0001);
+								$GPS[$ville]['lon'] = $GPS[$ville]['lon']-($k*0.0002);
+							}else{
+#								$GPS[$ville]['lat'] = $GPS[$ville]['lat']-($k*0.0001);
+								$GPS[$ville]['lon'] = $GPS[$ville]['lon']+($k*0.0002);
+							}
 							if (!empty($GPS[$ville]) && !empty($GPS[$ville]['lon']) && !empty($GPS[$ville]['lat']) ) {
-							$map .= '
+								if($showAnnuaire){#lien annuaire : ?annuaire.html#00001~ #note: les espaces avant et après les tildes (~) sont importants
+									$annu = $plxMotor->urlRewrite('?annuaire.html').'#';
+									$v['NOM'] = '<a href=\''.$annu.$v['NUM'].'~ '.strtolower($v['NOM']).'\'>'.$v['NOM'].'</a>';
+									$v['VILLE'] = '<a href=\''.$annu.' ~'.strtolower($v['VILLE']).'\'>'.$v['VILLE'].'</a>';
+								}
+								$map .= '
 			{
 				"geometry": {
 					"type": "Point",
@@ -375,29 +415,33 @@ class openStreetMaps extends plxPlugin {
 				"id": '.$v['NUM'].'
 			},';
 							}
-						}
+						}#hcaerof $marker
 						if ($map != '') {
-						$mapFeatures = 'var geosmjsonFeatures = {
-    "type": "FeatureCollection",
-    "features": ['.substr($map, 0,-1)/* del last comma ',' of loop{feature} */.'
+							$mapFeatures = 'var geosmjsonFeatures = {
+	"type": "FeatureCollection",
+	"features": ['.substr($map, 0,-1)/* del last comma ',' of loop{feature} */.'
 			]
 		};
 		'."\n";
 						}
-					}
+					}#fi !empty(ville)
+				}#hcaerof $infos as $ville => $marker
+				if($map) {
+					$map = substr($mapFeatures, 0,-2);
+					file_put_contents(PLX_PLUGINS.__CLASS__.'/listing/'.$adherents.'.txt', $map);
+				}else{#empty coords
+					$map = 'var geosmjsonFeatures = {"type": "FeatureCollection","features": []};';
 				}
-				$map = substr($mapFeatures, 0,-2);
-				file_put_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$adherents.'.txt', $map);
 			} else {
-				$map = file_get_contents(PLX_PLUGINS.'openStreetMaps/listing/'.$coordonnees[2]);
+				$map = file_get_contents(PLX_PLUGINS.__CLASS__.'/listing/'.$coordonnees[2]);
 			}
 		else :
 		# Récupération des coordonnées à afficher sur la carte
 		$COORD = $this->getRecords(PLX_ROOT.$this->getParam('source'));
 
 		$map = 'var geosmjsonFeatures = {
-    "type": "FeatureCollection",
-    "features": [';
+	"type": "FeatureCollection",
+	"features": [';
 		# Mise en forme des coordonnées (http://geojson.org/) /!\ coordonnées inversé (LONG in 1st) /!\
 		foreach ($COORD as $i => $marker) {
 			$map .= '
@@ -413,7 +457,7 @@ class openStreetMaps extends plxPlugin {
 					$map .= ' "popupContent": "'.$marker['NOM'].'"';
 				} else {
 					$map .= ' "popupContent": "&nbsp;"';
-				}	
+				}
 				$map .= '
 				},
 				"id": '.$marker['NUM'].'
@@ -425,14 +469,14 @@ class openStreetMaps extends plxPlugin {
 	'."\n";
 	endif;
 
-echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.'openStreetMaps/leaflet.js"></script>'."\n";
+echo "\t".'<script type="text/javascript" src="'.PLX_PLUGINS.__CLASS__.'/leaflet.js?v='.$this->v.'"></script>'."\n";
 
 echo '
 <script type="text/javascript">
 '.$map.'
 	var map = L.map(\'map\').setView(['.$this->getParam('latitude').', '.$this->getParam('longitude').'], '.$this->getParam('zoom').');'."\t
 	L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-		attribution: 'Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"openstreetmap.org\">openstreetmap.org</a>',
+		attribution: 'Map data &copy; <a href=\"https://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"openstreetmap.org\">openstreetmap.org</a>',
 		maxZoom: 18
 	}).addTo(map);
 
@@ -445,7 +489,7 @@ echo '
 		.setLatLng(['.$this->getParam('popupLatitude').', '.$this->getParam('popupLongitude').'])
 		.setContent("'.str_replace("'","&#039;",$this->getParam('popupTexte')).'")
 		.openOn(map);
-' : '').($marker?'
+' : '').($map?'
 	L.geoJson(geosmjsonFeatures, {
 		style: function (feature) {return feature.properties && feature.properties.style;},
 		onEachFeature: onEachFeature /*,
@@ -473,4 +517,3 @@ echo '
 		?>';
 	}
 }
-?>

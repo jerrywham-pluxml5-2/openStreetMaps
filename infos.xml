@@ -2,9 +2,9 @@
 <document>
 	<title><![CDATA[openStreetMaps]]></title>
 	<author><![CDATA[Cyril MAGUIRE, Thomas Ingles]]></author>
-	<version>1.2</version>
-	<date>12.04.2017</date>
+	<version>1.2.1</version>
+	<date>20.08.2019</date>
 	<site>http://www.ecyseo.net</site>
-	<description><![CDATA[Affiche une carte OpenStreetMap avec points positionable et localisation de villes de France]]></description>
+	<description><![CDATA[Affiche une carte OpenStreetMap avec points positionnable et localisation de villes de France. Compatible avec le plugin adhesion 2.2.2. ]]></description>
 	<requirements></requirements>
 </document>

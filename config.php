@@ -108,7 +108,7 @@ if(!empty($_POST)) {
 		}
 
 		else if(isset($_POST['csv2db'])){#since v1.2.1 #Import in db from csv file
-			if(!empty($_POST['csv'])){
+			if(isset($_POST['csv'])){
 				$plxPlugin->setParam('csv', $_POST['csv'], 'string');
 				$plxPlugin->saveParams();
 				$medias = isset($plxAdmin->aConf['images'])?$plxAdmin->aConf['images']:$plxAdmin->aConf['medias'];#old or new pluxml 5.x
@@ -172,13 +172,15 @@ if(!empty($_POST)) {
 $csvDir = PLX_PLUGINS.$pluginName.DIRECTORY_SEPARATOR.'csv'.DIRECTORY_SEPARATOR;# BASE url in bigData() #js
 $file = $csvDir.'*.*';#PLX_PLUGINS.get_class($plxPlugin).'/csv/*.csv';
 $files = glob($file);# get all file names
-$csvFiles = '<br />'.$plxPlugin->getLang('L_CSV_PRE_SEL').':';
+$csvFiles = $csvFile = '';
 foreach($files as $file){# iterate files
 	if(is_file($file)){
+		if(empty($csvFile)) $csvFile = $file;
 		$fileName = basename($file);
 		$csvFiles .= '<br /><a class="osmcsvlnk" title="'.$plxPlugin->getLang('L_CSV_PRE_SEL_PH').'" href="javascript:void(0);" onclick="bigData(this.innerHTML);">'.$fileName.'</a>'.PHP_EOL;
 	}
 }
+if(!empty($csvFiles)) $csvFiles = '<br />'.$plxPlugin->getLang('L_CSV_PRE_SEL').':' . $csvFiles;
 # Type de fichier source
 $type = $plxPlugin->getParam('type')=='' ? 1 : $plxPlugin->getParam('type');
 $show = $plxPlugin->getParam('type')==1 ? 'on' : '';#CP MODE
@@ -194,7 +196,7 @@ $source = $plxPlugin->getParam('source')=='' ? 'plugins/'.$pluginName.'/source.e
 $item_principal = $plxPlugin->getParam('item_principal')=='' ? 'adherent' : $plxPlugin->getParam('item_principal');
 $itemville = $plxPlugin->getParam('itemville')=='' ? 'ville' : $plxPlugin->getParam('itemville');
 $itemcp = $plxPlugin->getParam('itemcp')=='' ? 'cp' : $plxPlugin->getParam('itemcp');
-$csv = PLX_PLUGINS.$pluginName.DIRECTORY_SEPARATOR.'csv'.DIRECTORY_SEPARATOR.'villes_FR.csv';#laposte_hexasmal.csv ...
+$csv = !empty($csvFile)?$csvFile:'';#PLX_PLUGINS.$pluginName.DIRECTORY_SEPARATOR.'csv'.DIRECTORY_SEPARATOR.'villes_FR.csv';#laposte_hexasmal.csv ...
 $csv = $plxPlugin->getParam('csv')=='' ? $csv : $plxPlugin->getParam('csv');
 $drawMode = $plxPlugin->getParam('drawMode')=='' ? 1 : $plxPlugin->getParam('drawMode');#since v1.2.1
 

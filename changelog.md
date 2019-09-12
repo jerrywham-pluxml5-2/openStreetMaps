@@ -5,6 +5,8 @@
 [*] info.xml
 	<compatible>5.2+</compatible>
 	<scope></scope>
+[+] Config : Si aucun fichier ds le dossier csv on affiche pas l'info
+[+] Config : On affiche le premier fichier du dossier "csv" inclus ds plugin
 [+] Config : param z-index
 [+] Variables LANGS augmentées
 [+] Licence, contrib & readme.md
